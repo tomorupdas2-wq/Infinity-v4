@@ -20,33 +20,24 @@ jobs:
 
       - name: Extract project
         run: |
-          ZIP=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
-          if [ -z "$ZIP" ]; then
-            echo "No ZIP file found"
-            exit 1
-          fi
           mkdir project
-          unzip -q "$ZIP" -d project
+          unzip -q "InfinityV4-1.21.11-buildready.zip" -d project
 
-      - name: Find Gradle project
+      - name: Fix permissions
         run: |
-          echo "Searching for Gradle project..."
-          find project -name settings.gradle -o -name settings.gradle.kts -o -name build.gradle
+          chmod -R u+rwX project/infinity
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.1'
 
-      - name: Build
-        run: |
-          ROOT=$(find project -name settings.gradle -o -name settings.gradle.kts | head -n 1 | xargs dirname)
-          echo "Building from: $ROOT"
-          cd "$ROOT"
-          gradle build --no-daemon
+      - name: Build Infinity Client
+        working-directory: project/infinity
+        run: gradle build --no-daemon
 
       - name: Upload compiled JAR
         uses: actions/upload-artifact@v4
         with:
           name: Infinity-Client
-          path: project/**/build/libs/*.jar
+          path: project/infinity/build/libs/*.jar
