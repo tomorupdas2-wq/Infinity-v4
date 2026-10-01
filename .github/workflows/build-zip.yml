@@ -1,14 +1,15 @@
-name: Build Infinity V4
+name: Build Infinity Client
 
 on:
   workflow_dispatch:
+  push:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download project
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Java 21
@@ -17,29 +18,35 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Extract project ZIP
+      - name: Extract project
         run: |
+          ZIP=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
+          if [ -z "$ZIP" ]; then
+            echo "No ZIP file found"
+            exit 1
+          fi
           mkdir project
-          unzip -q *.zip -d project
+          unzip -q "$ZIP" -d project
 
       - name: Find Gradle project
         run: |
-          GRADLEW=$(find project -name gradlew -type f | head -n 1)
-          if [ -z "$GRADLEW" ]; then
-            echo "Could not find gradlew!"
-            exit 1
-          fi
-          echo "PROJECT_DIR=$(dirname "$GRADLEW")" >> "$GITHUB_ENV"
+          echo "Searching for Gradle project..."
+          find project -name settings.gradle -o -name settings.gradle.kts -o -name build.gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.1'
 
       - name: Build
         run: |
-          cd "$PROJECT_DIR"
-          chmod +x gradlew
-          ./gradlew build --no-daemon
+          ROOT=$(find project -name settings.gradle -o -name settings.gradle.kts | head -n 1 | xargs dirname)
+          echo "Building from: $ROOT"
+          cd "$ROOT"
+          gradle build --no-daemon
 
-      - name: Upload JAR
+      - name: Upload compiled JAR
         uses: actions/upload-artifact@v4
         with:
-          name: Infinity-V4
+          name: Infinity-Client
           path: project/**/build/libs/*.jar
-          if-no-files-found: error
